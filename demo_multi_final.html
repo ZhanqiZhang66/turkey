@@ -1,0 +1,198 @@
+<script>
+    // This is the hacking code to get the event listeners. by overriding.
+    EventTarget.prototype._addEventListener = EventTarget.prototype.addEventListener;
+
+    EventTarget.prototype.addEventListener = function(a, b, c) {
+       if (c==undefined) c=false;
+       this._addEventListener(a,b,c);
+       if (! this.eventListenerList) this.eventListenerList = {};
+       if (! this.eventListenerList[a]) this.eventListenerList[a] = [];
+       this.eventListenerList[a].push({listener:b,options:c});
+    };
+</script>
+
+<script src="https://assets.crowd.aws/crowd-html-elements.js"></script>
+<head>  
+  <style>  
+    /*p {  
+      text-indent: 2.0em;  
+    }  */
+    .column {
+      float: left;
+      padding: 10px;
+      /*height: 300px;*/ /* Should be removed. Only for demonstration */
+    }
+    .left {
+      width: 70%;
+    }
+    .right {
+      width: 25%;
+      padding-top: 10%;
+    }
+  </style>  
+</head>  
+<crowd-form>
+    <div class="column left" >
+        
+    <crowd-image-classifier-multi-select
+        src="https://mturk-gan-interp.s3.us-east-2.amazonaws.com/StyleGAN2_Face1024/SG2_Face1024_eig007_0033_incrmarg.png"
+        categories="['Color', 'Size', 'Position', 'Orientation', 'Posture', 'Identity', 'Background']"
+        header="Which type of change is happening in each row?"
+        name="ChangeType"
+        exclusion-category="{ text: 'None of the above' }"
+        onclick="showConsistency(this.value)">
+        <!-- "https://mturk-gan-interp.s3.us-east-2.amazonaws.com/StyleGAN2_Cat/SG2_Cat256_sph_eig007_3411.png" -->
+        <!-- "https://mturk-gan-interp.s3.us-east-2.amazonaws.com/StyleGAN2_Cat/SG2_Cat256_sph_eig003_6148.png" -->
+        <!-- "https://mturk-gan-interp.s3.us-east-2.amazonaws.com/${image_url}" -->
+        <short-instructions>
+            <p>Read the task carefully and inspect the image.</p>
+            <p>An AI did some transformation to the subject (face, body, animal, object) of the image in each row.</p>
+            <p>The 5 frames in each row visualize the gradual change.</p>
+            <p>Do you find the transformation interpretable? Is it consistent across rows? </p>
+            <p>Note consistency means the same operation applied to the 5 images will result in the 5 roles.</p>
+        </short-instructions>
+
+        <full-instructions header="Instructions">
+            <p>Read the task carefully and inspect the image.</p>
+            <p>An AI did some transformation to the subject (face, body, animal, object) of the image in each row.</p>
+            <p>The 5 frames in each row visualize the gradual change.</p>
+            <p>Do you find the transformation interpretable? Is it consistent across rows? </p>
+            <p>Note consistency means the same operation applied to the 5 images will result in the 5 roles.</p>
+        </full-instructions>
+        <!-- <worker-comment header="Add a comment.">
+        </worker-comment> -->
+    </crowd-image-classifier-multi-select>
+
+    </div>
+    <!-- label="There is some change across each row: "  -->
+
+    <div class="column right" id="additionalQuestion">
+    <div id="ObviousChange" style="display:block;" >
+        Do you see image change within each row?
+        <!-- <p> <crowd-toggle-button name="isChange" onclick="showDiv(this.checked)" checked value="on"></crowd-checkbox> </p> -->
+        <crowd-radio-group>
+            <crowd-radio-button name="Yes" onclick="showDiv(true)"> Yes </crowd-radio-button>
+            <crowd-radio-button name="No" onclick="showDiv(false)"> No </crowd-radio-button>
+        </crowd-radio-group>
+    </div>
+    <!-- <input type="button" name="answer" value="Show Div" onclick="showDiv()" /> -->
+    <div id="DescriptInput" style="display:none;" >
+    How will you describe the change?
+    <crowd-input name="ChangeDescription" label="Describe the Change if you observe any"  placeholder="Changes you observed" auto-focus required>Describe the Change if you observe any</crowd-input>
+    </div>
+
+    <div id="ClassifyInput" style="display:none;" >
+    </div>
+    <div id="ConsistencyInput" style="display:none;" onclick="showInterpretability(this.value)">
+      <p> On a scale from 1 to 5 (where 1 totally diverse, 5 very consistent), how <b>consistent</b> is the transformation(s) across the rows in your eye?
+      <!-- <crowd-slider name="Interpretability" min="1" max="5" step="1" value="3" pin="true" required></crowd-slider>  -->
+      <crowd-radio-group name="Consistency">
+        <crowd-radio-button name="Cns1"> 1 </crowd-radio-button>
+        <crowd-radio-button name="Cns2"> 2 </crowd-radio-button>
+        <crowd-radio-button name="Cns3"> 3 </crowd-radio-button>
+        <crowd-radio-button name="Cns4"> 4 </crowd-radio-button>
+        <crowd-radio-button name="Cns5"> 5 </crowd-radio-button>
+      </crowd-radio-group> 
+      </p>
+    </div>
+
+    <div id="InterprtInput" style="display:none;" >
+      <p> On a scale from 1 to 5 (where 1 very easy, 5 very hard), how <b>hard is it for you to interpret</b> such transformation(s)?
+      <!-- <crowd-slider name="Interpretability" min="1" max="5" step="1" value="3" pin="true" required></crowd-slider>  -->
+      <crowd-radio-group name="Interpretability">
+        <crowd-radio-button name="Itp1"> 1 </crowd-radio-button>
+        <crowd-radio-button name="Itp2"> 2 </crowd-radio-button>
+        <crowd-radio-button name="Itp3"> 3 </crowd-radio-button>
+        <crowd-radio-button name="Itp4"> 4 </crowd-radio-button>
+        <crowd-radio-button name="Itp5"> 5 </crowd-radio-button>
+      </crowd-radio-group> 
+      </p>
+    </div>
+
+    <div id="RTrecord" style="display:none;" >
+        <crowd-input id="ReactionTime" name="RT" ></crowd-input>
+    </div>
+    <crowd-button form-action="submit" onclick="recordTime()" > submit </crowd-button>
+
+</crowd-form>
+<script> 
+    // document.getElementsByName("ChangeDescription")[0].onkeypress = KeyHandler;
+    // const listeners = listAllEventListeners();
+    // window.removeEventListener("keydown", getEventListeners(window)["keydown"][0].listener)
+    var initTime;
+    function waitForElementandHide(){
+        // Initialize the Scene: 1. 
+        if(document.getElementsByName("ChangeType")[0].shadowRoot !== null){
+            category_picker = document.getElementsByName("ChangeType")[0].shadowRoot.querySelector('.category-picker')
+            if(category_picker !== null){//variable exists, do what you want
+                category_picker.style.display='none';
+                category_picker.querySelector('h2').innerText = "What's type of change have you observed?";
+                initTime = new Date();
+                for (let evtlsn of window.eventListenerList["keydown"]){
+                    if(evtlsn.listener.name.match("handleKeydown")){
+                        window.removeEventListener("keydown", evtlsn.listener);
+                        console.log("keydown", evtlsn.listener);
+                    }
+                }
+            // document.getElementsByName("ChangeType")[0].shadowRoot.querySelector('.category-picker').style.display='none';
+            }else{
+                setTimeout(waitForElementandHide, 15);
+            }
+        }
+        else{
+            setTimeout(waitForElementandHide, 15);
+        }
+    }
+    window.addEventListener("load", waitForElementandHide, false);
+</script>
+
+<script> 
+    // $(window).bind("load", function() {
+    //    initTime = new Date();//Date.now();// code here
+    // });
+    function showDiv(show) {
+        if(show){//document.getElementsByName("isChange")[0].checked
+            document.getElementById("DescriptInput").style.display = "block";
+            // document.getElementById("InterprtInput").style.display = "block";   
+            document.getElementsByName("ChangeDescription")[0].value = ""; 
+            // document.getElementsByName("Interpretability")[0].value = "3";
+            document.getElementsByName("ChangeType")[0].value = [];//null "null";
+            category_picker.querySelector('h2').innerText = "What's type of change have you observed?";
+            category_picker.style.display='block';
+            // document.querySelector('[name=ChangeType]').shadowRoot.querySelector('.category-picker').style.display='block';
+        } else {
+            document.getElementById("DescriptInput").style.display = "none";
+            document.getElementById("InterprtInput").style.display = "none";  
+            document.getElementById("ConsistencyInput").style.display = "none";  
+            document.getElementsByName("ChangeDescription")[0].value = "NA"; 
+            // document.getElementsByName("Interpretability")[0].value = "0";
+            document.getElementsByName("ChangeType")[0].value = "None of the Above";
+            category_picker.style.display='none';
+            for (button of document.getElementsByName("Consistency")[0].querySelectorAll("crowd-radio-button")){
+                button.checked = false;
+            }
+            for (button of document.getElementsByName("Interpretability")[0].querySelectorAll("crowd-radio-button")){
+                button.checked = false;
+            }
+            // document.querySelector('[name=ChangeType]').shadowRoot.querySelector('.category-picker').style.display='none';
+        }
+    }
+    function showConsistency(option){
+        category_picker.querySelector('h2').innerText = "What's type of change have you observed?";
+        if(option!=[]){
+            document.getElementById("ConsistencyInput").style.display = "block";  
+        } 
+    }
+    function showInterpretability(option){
+        category_picker.querySelector('h2').innerText = "What's type of change have you observed?";
+        if(option!==null){
+            document.getElementById("InterprtInput").style.display = "block";  
+        } 
+    }
+    function recordTime() { 
+        let timeStampInMs = new Date();
+        // alert((timeStampInMs - initTime)/1000)
+        document.getElementById("ReactionTime").value = (timeStampInMs - initTime)/1000;
+        return true
+    }
+</script>
